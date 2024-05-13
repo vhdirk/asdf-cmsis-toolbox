@@ -41,17 +41,30 @@ download_release() {
 	version="$1"
 	filename="$2"
 
-	# TODO: Adapt the release URL convention for cmsis-toolbox
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	local arch
+	arch=$(get_arch)
+	local kernel
+	kernel=$(get_kernel)
+
+	url="$GH_REPO/releases/download/${version}/${TOOL_NAME}-${kernel}-${arch}.tar.gz"
 
 	echo "* Downloading $TOOL_NAME release $version..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
+get_arch () {
+  uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/g'
+}
+
+get_kernel () {
+  uname -s | tr '[:upper:]' '[:lower:]'
+}
+
 install_version() {
 	local install_type="$1"
 	local version="$2"
-	local install_path="${3%/bin}/bin"
+	local install_path="${3%/bin}"
+	local install_bin_path="${install_path}/bin"
 
 	if [ "$install_type" != "version" ]; then
 		fail "asdf-$TOOL_NAME supports release installs only"
@@ -61,14 +74,13 @@ install_version() {
 		mkdir -p "$install_path"
 		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-		# TODO: Assert cmsis-toolbox executable exists.
 		local tool_cmd
 		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
-		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
+		test -x "$install_bin_path/$tool_cmd" || fail "Expected $install_bin_path/$tool_cmd to be executable."
 
 		echo "$TOOL_NAME $version installation was successful!"
 	) || (
-		rm -rf "$install_path"
+		rm -rf "$install_bin_path"
 		fail "An error occurred while installing $TOOL_NAME $version."
 	)
 }
